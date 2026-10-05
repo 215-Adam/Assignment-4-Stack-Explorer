@@ -1,0 +1,21 @@
+STACK MECHANICS
+
+When I ran factorial(5), the output printed "Entering factorial(5)" down to "Entering factorial(1)", then "Base case reached", then the "Returning" lines in reverse order, from factorial(1) back up to factorial(5). The entering lines show the stack growing, one frame per call, and the returning lines show it shrinking as each frame is popped. No call could finish until the call above it returned. For Fibonacci, I indented each line by its depth, which made the stack look like a tree: the output went deep along fibonacci(n-1), came back up a level, then went down again for fibonacci(n-2).
+
+When I ran infinite_recursion, it printed "Call 0", "Call 1" and so on until about "Call 42909", then the program died without any message. On Windows the exit code was 0xC00000FD, which is STATUS_STACK_OVERFLOW. On Linux it would show up as a segmentation fault.
+
+Each function call pushes a stack frame. The frame holds the return address (where to continue in the caller), the saved frame pointer of the caller, the parameters (or copies of them), and the function's local variables.
+
+RECURSION COSTS
+
+With the same input, the maximum stack depth was the same. factorial(10) used 10 frames and fibonacci(10) reached depth 10. What was very different was the total work: fibonacci(10) made 177 calls, and fibonacci(30) made 2,692,537 calls while still only reaching depth 30. Fibonacci makes two recursive calls, but it finishes the first branch before starting the second, so only one path is ever on the stack at a time. Its frames are slightly bigger because it has an extra depth parameter, but the real cost of Fibonacci is time, not stack space.
+
+Python limits recursion depth (1000 by default) because every call uses stack memory, and the stack has a fixed size. Without that limit, deep recursion would crash the whole interpreter the same way my C program crashed, instead of raising a RecursionError that the program can catch.
+
+FUNCTION POINTERS AND CALLBACKS
+
+A function pointer stores the address of a function, so a function can be passed around like any other value and called later. In process_array, the loop never changes; the callback decides what happens to each element. Passing double_value, square_value, or negate_value gave three different results from the same function, and a new operation only needs a new small function, not a new loop.
+
+A real-world example is a GUI button. The framework cannot know what should happen on a click, so you register a callback and the framework calls it when the click happens. My event system worked the same way.
+
+Systems programmers use callbacks because they separate the code that detects an event from the code that reacts to it. Libraries such as qsort and signal handlers can then work with code that was written later, without being changed or recompiled.

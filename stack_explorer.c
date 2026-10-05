@@ -36,10 +36,21 @@ int max_depth = 0;
 //   Returning from factorial(2) = 2
 //   Returning from factorial(3) = 6
 
+// Note: int overflows past factorial(12), so keep n <= 12.
+int factorial(int n) {
+    printf("Entering factorial(%d)\n", n);      // a new stack frame is pushed
 
+    int result;
+    if (n <= 1) {
+        printf("Base case reached\n");
+        result = 1;
+    } else {
+        result = n * factorial(n - 1);          // this frame waits for the one above it
+    }
 
-
-
+    printf("Returning from factorial(%d) = %d\n", n, result);  // frame is popped
+    return result;
+}
 
 // =============================================================================
 // PART 2: STACK DEPTH TRACKING
@@ -58,11 +69,39 @@ int max_depth = 0;
 // Hint: int fibonacci(int n, int depth) { ... }
 // The depth parameter tracks how many levels deep we are in recursion
 
+// fib(30) makes over 2.6 million calls, so per-call printing can be switched
+// off for large n. fib_calls counts every call so we can compare total work
+// (which grows exponentially) against max_depth (which only grows linearly).
+int fib_trace = 1;
+long fib_calls = 0;
 
+int fibonacci(int n, int depth) {
+    fib_calls++;
+    if (depth > max_depth) {
+        max_depth = depth;
+    }
 
+    if (fib_trace) {
+        // Indent by depth so the shape of the call tree is visible
+        printf("%*sdepth %d: fibonacci(%d)\n", depth * 2, "", depth, n);
+    }
 
+    if (n <= 1) {
+        return n;
+    }
+    return fibonacci(n - 1, depth + 1) + fibonacci(n - 2, depth + 1);
+}
 
+// Resets the trackers, runs fibonacci(n), and reports the stats
+void run_fibonacci(int n, int trace) {
+    max_depth = 0;
+    fib_calls = 0;
+    fib_trace = trace;
 
+    int result = fibonacci(n, 1);
+    printf("fibonacci(%d) = %d | max stack depth = %d | total calls = %ld\n",
+           n, result, max_depth, fib_calls);
+}
 
 // =============================================================================
 // PART 3: STACK OVERFLOW DEMONSTRATION
@@ -78,9 +117,10 @@ int max_depth = 0;
 // This will crash! That's intentional - you'll observe what stack overflow looks like.
 // Hint: void infinite_recursion(int n) { ... }
 
-
-
-
+void infinite_recursion(int n) {
+    printf("Call %d\n", n);
+    infinite_recursion(n + 1);   // no base case: every call pushes another frame
+}
 
 // TODO: Implement safe_recursion (fixed version)
 // This function should:
@@ -92,10 +132,15 @@ int max_depth = 0;
 // This version has a proper base case and won't overflow.
 // Hint: void safe_recursion(int n, int max_depth) { ... }
 
-
-
-
-
+// (The max_depth parameter shadows the global of the same name inside this function.)
+void safe_recursion(int n, int max_depth) {
+    printf("Call %d\n", n);
+    if (n >= max_depth) {
+        printf("Stopping at max depth\n");
+        return;                  // base case: the stack starts unwinding here
+    }
+    safe_recursion(n + 1, max_depth);
+}
 
 // =============================================================================
 // PART 4: FUNCTION POINTERS AND CALLBACKS
@@ -110,11 +155,11 @@ int max_depth = 0;
 //
 // Hint: int double_value(int n) { return n * 2; }
 
+int double_value(int n) { return n * 2; }
 
+int square_value(int n) { return n * n; }
 
-
-
-
+int negate_value(int n) { return -n; }
 
 // TODO: Implement process_array function
 // This function should:
@@ -126,11 +171,12 @@ int max_depth = 0;
 // Hint: void process_array(int* arr, int size, int (*callback)(int)) { ... }
 // Example: process_array(arr, 5, double_value); applies double_value to each element
 
-
-
-
-
-
+void process_array(int* arr, int size, int (*callback)(int)) {
+    for (int i = 0; i < size; i++) {
+        printf("%d ", callback(arr[i]));   // which function runs is decided by the caller
+    }
+    printf("\n");
+}
 
 // =============================================================================
 // PART 5: EVENT CALLBACK SYSTEM
@@ -153,9 +199,12 @@ typedef struct EventSystem {
 //
 // Hint: void event_system_init(EventSystem* es) { ... }
 
-
-
-
+void event_system_init(EventSystem* es) {
+    es->callback_count = 0;
+    for (int i = 0; i < MAX_CALLBACKS; i++) {
+        es->callbacks[i] = NULL;
+    }
+}
 
 // TODO: Implement event_system_register
 // This function should:
@@ -166,10 +215,15 @@ typedef struct EventSystem {
 //
 // Hint: void event_system_register(EventSystem* es, void (*callback)(int)) { ... }
 
-
-
-
-
+void event_system_register(EventSystem* es, void (*callback)(int)) {
+    if (es->callback_count < MAX_CALLBACKS) {
+        es->callbacks[es->callback_count] = callback;
+        es->callback_count++;
+        printf("Callback registered\n");
+    } else {
+        printf("Max callbacks reached\n");
+    }
+}
 
 // TODO: Implement event_system_trigger
 // This function should:
@@ -179,10 +233,12 @@ typedef struct EventSystem {
 //
 // Hint: void event_system_trigger(EventSystem* es, int value) { ... }
 
-
-
-
-
+void event_system_trigger(EventSystem* es, int value) {
+    printf("Triggering %d callbacks with value %d\n", es->callback_count, value);
+    for (int i = 0; i < es->callback_count; i++) {
+        es->callbacks[i](value);
+    }
+}
 
 // Example callback functions for the event system
 void on_score_update(int score) {
@@ -215,35 +271,56 @@ int main() {
     // 6. Create an EventSystem, register callbacks, and trigger events
     
     printf("\n--- Part 1: Factorial with Stack Visualization ---\n");
-    // TODO: Call factorial and print result
-    
-    
+    printf("factorial(5) = %d\n\n", factorial(5));
+    printf("factorial(10) = %d\n", factorial(10));
+
     printf("\n--- Part 2: Fibonacci with Depth Tracking ---\n");
-    // TODO: Call fibonacci multiple times and track max_depth
-    
-    
-    
+    // Full trace for a small n so the call tree is readable
+    run_fibonacci(5, 1);
+    // Larger values: stats only (fibonacci(30) would print ~2.7 million lines)
+    printf("\n");
+    run_fibonacci(10, 0);
+    run_fibonacci(20, 0);
+    run_fibonacci(30, 0);
+
     printf("\n--- Part 3: Stack Overflow Demo (comment out after testing!) ---\n");
-    // TODO: Call infinite_recursion (will crash - that's expected)
+    // Observed: prints "Call 0", "Call 1", ... then the program dies with no
+    // error message. On Windows (gcc 10.3, default 1 MB stack) it got to roughly
+    // Call 43,000 before crashing with exit code 0xC00000FD (STATUS_STACK_OVERFLOW);
+    // on Linux/macOS the same bug shows up as "Segmentation fault".
     // printf("Attempting infinite recursion...\n");
     // infinite_recursion(0);  // WILL CRASH - comment out after observing!
-    
+    printf("infinite_recursion(0) is commented out (it crashes the program).\n");
+
     printf("\n--- Part 3: Safe Recursion (Fixed Version) ---\n");
-    // TODO: Call safe_recursion with a reasonable max depth
-    
-    
+    safe_recursion(0, 10);
+
     printf("\n--- Part 4: Function Pointers and Callbacks ---\n");
-    // TODO: Create array and test with different callbacks
-    
-    
-    
-    
+    int numbers[] = {1, 2, 3, 4, 5};
+    int size = sizeof(numbers) / sizeof(numbers[0]);
+
+    printf("Original: ");
+    for (int i = 0; i < size; i++) {
+        printf("%d ", numbers[i]);
+    }
+    printf("\n");
+    printf("Doubled:  ");
+    process_array(numbers, size, double_value);
+    printf("Squared:  ");
+    process_array(numbers, size, square_value);
+    printf("Negated:  ");
+    process_array(numbers, size, negate_value);
+
     printf("\n--- Part 5: Event System ---\n");
-    // TODO: Initialize event system, register callbacks, trigger events
-    
-    
-    
-    
+    EventSystem events;
+    event_system_init(&events);
+    event_system_register(&events, on_score_update);
+    event_system_register(&events, on_level_change);
+    event_system_register(&events, on_health_change);
+
+    event_system_trigger(&events, 100);
+    event_system_trigger(&events, 3);
+
     printf("\n=============================================================\n");
     printf("Stack exploration complete!\n");
     printf("=============================================================\n");
